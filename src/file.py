@@ -56,6 +56,6 @@ class InputManager:
             logger.info(f"Loaded {len(res[id])} date directories for Norad ID {id}")
         logger.info(f"Total satellites loaded: {len(res)}")
         return res
-    
+
     def output_fig():
         pass

@@ -70,7 +70,7 @@ if __name__ == "__main__":
     skymanager = SkyfieldManager(ground_station, ts, sats)
     sat_records = skymanager.get_sat_by_id_and_date(57582, date=date(2024, 1, 27))
     # logger.info(sat_records)
-    
+
     for item in sat_records:
         for s in item.sats:
             skymanager.print_distance_figure(

@@ -129,7 +129,12 @@ class SkyfieldManager:
                         plt.plot(days, curve_masked, colors[count])
             count += 1
         plt.legend()
-        plt.savefig(path.parent.parent.parent / "fig" / f"{sat.model.satnum}" / f"{path.name}.jpg")
+        plt.savefig(
+            path.parent.parent.parent
+            / "fig"
+            / f"{sat.model.satnum}"
+            / f"{path.name}.jpg"
+        )
 
         if is_print:
             plt.show()
