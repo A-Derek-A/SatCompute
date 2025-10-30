@@ -65,8 +65,6 @@ if __name__ == "__main__":
     long = args.longitude
     ground_station = wgs84.latlon(lat, long)  # 根据经纬度确定地面站坐标
 
-    # logger.info("here2")
-    # logger.info(sats)
     skymanager = SkyfieldManager(ground_station, ts, sats)
     sat_records = skymanager.get_sat_by_id_and_date(57582, date=date(2024, 1, 27))
     # logger.info(sat_records)
