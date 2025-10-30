@@ -68,9 +68,18 @@ if __name__ == "__main__":
     skymanager = SkyfieldManager(ground_station, ts, sats)
     sat_records = skymanager.get_sat_by_id_and_date(57582, date=date(2024, 1, 27))
     # logger.info(sat_records)
-    
+
+    frequency = 9.6e9
+    dis = 1 / frequency * 0.5 * C
+
     for item in sat_records:
         for s in item.sats:
-            skymanager.print_distance_figure(
-                s, item.datadir, duration=timedelta(days=1), delta=tick
+            # skymanager.print_distance_figure(
+            #     s, item.datadir, duration=timedelta(days=1), delta=tick
+            # )
+            # skymanager.print_complete_process(
+            #     s, item.datadir, minimum_elevation=0, duration=timedelta(days=2), delta=tick
+            # )
+            skymanager.print_delta_time(
+                s, item.datadir, minimum_elevation=0, duration=timedelta(days=2), delta=tick, delta_dis=dis, is_print=True
             )
