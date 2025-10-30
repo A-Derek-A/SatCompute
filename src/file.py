@@ -4,11 +4,15 @@ from skyfield.api import load
 from utils.logger import logger
 from sky import SatRecord
 from datetime import date
+import matplotlib as plt
 
 
 work_dir = Path(__file__).parent.parent
+
 tle_data_dir = work_dir / "data" / "TLE"
 fig_data_dir = work_dir / "data" / "fig"
+check_data_dir = work_dir / "data" / "checkpoint"
+curve_data_dir = work_dir / "data" / "curve"
 
 
 class InputManager:
@@ -22,6 +26,10 @@ class InputManager:
         for id in self.norad_id_list:
             if not (fig_data_dir / f"{id}").exists():
                 (fig_data_dir / f"{id}").mkdir()
+            if not (check_data_dir / f"{id}").exists():
+                (check_data_dir / f"{id}").mkdir()
+            if not (curve_data_dir / f"{id}").exists():
+                (curve_data_dir / f"{id}").mkdir()
 
     def load_all_tle(self) -> dict[int, list[SatRecord]]:
         res = {}
@@ -56,6 +64,37 @@ class InputManager:
             logger.info(f"Loaded {len(res[id])} date directories for Norad ID {id}")
         logger.info(f"Total satellites loaded: {len(res)}")
         return res
+    
+    def print_figure(
+        xdata: list,
+        ydata: dict,
+        norad_id: int,
+        date_name: str,
+        xlabel: str | None,
+        ylabel: str | None,
+        figure_title: str | None,
+        is_grid: bool = True,
+        figure_size: tuple[int, int] = (8, 4),
+        is_print: bool = False,
+    ):
+        colors = ["red", "green", "blue", "orange"]
+        plt.figure(figsize=figure_size)
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        plt.title(figure_title)
+        plt.grid(is_grid)
+        plt.tight_layout()
 
-    def output_fig():
-        pass
+        for k, v in ydata.items():
+            for item in v:
+                plt.plot(xdata, item, colors[k], label=f"test degree")
+
+        plt.legend()
+        plt.savefig(
+            fig_data_dir
+            / f"{norad_id}"
+            / f"{date_name}-delta-time.jpg"
+        )
+        if is_print:
+            plt.show()
+            
