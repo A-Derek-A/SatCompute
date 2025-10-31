@@ -64,7 +64,7 @@ class InputManager:
             logger.info(f"Loaded {len(res[id])} date directories for Norad ID {id}")
         logger.info(f"Total satellites loaded: {len(res)}")
         return res
-    
+
     def print_figure(
         xdata: list,
         ydata: dict,
@@ -90,11 +90,15 @@ class InputManager:
                 plt.plot(xdata, item, colors[k], label=f"test degree")
 
         plt.legend()
-        plt.savefig(
-            fig_data_dir
-            / f"{norad_id}"
-            / f"{date_name}-delta-time.jpg"
-        )
+        plt.savefig(fig_data_dir / f"{norad_id}" / f"{date_name}-delta-time.jpg")
         if is_print:
             plt.show()
+
+    def handle_date(
+        data_path: Path,
+    ):
+        for item in data_path.glob(".npz"):
+            degree, time = item.name.split("-")
+            time, _, _ = time.split(".")
+            print(time)
             

@@ -1,4 +1,5 @@
 .DS_Store
 .ruff_cache/*
 src/__pycache__/*
-
+data/checkpoint/*
+data/curve/*

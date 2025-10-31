@@ -19,6 +19,8 @@ from datetime import date
 work_dir = Path(__file__).parent.parent
 tle_data_dir = work_dir / "data" / "TLE"
 fig_data_dir = work_dir / "data" / "fig"
+check_data_dir = work_dir / "data" / "checkpoint"
+curve_data_dir = work_dir / "data" / "curve"
 
 
 if __name__ == "__main__":
@@ -80,6 +82,28 @@ if __name__ == "__main__":
             # skymanager.print_complete_process(
             #     s, item.datadir, minimum_elevation=0, duration=timedelta(days=2), delta=tick
             # )
-            skymanager.print_delta_time(
-                s, item.datadir, minimum_elevation=0, duration=timedelta(days=2), delta=tick, delta_dis=dis, is_print=True
+            # skymanager.print_delta_time(
+            #     s,
+            #     item.datadir,
+            #     minimum_elevation=0,
+            #     duration=timedelta(days=1),
+            #     delta=tick,
+            #     delta_dis=dis,
+            #     is_print=True,
+            # )
+            # skymanager.print_delta_time_with_checkpoint(
+            #     s,
+            #     item.datadir,
+            #     duration=timedelta(days=1),
+            #     delta=tick,
+            #     minimum_elevation=0,
+            #     delta_dis=dis,
+            #     checkpoint_path=check_data_dir / f"{s.model.satnum}" / f"checkpoint.pkl",
+            # )
+
+            skymanager.print_delta_time_quick(
+                sat=s,
+                path=item.datadir,
+                duration=timedelta(days=1),
+                minimum_elevation=0
             )
