@@ -53,19 +53,22 @@ if __name__ == "__main__":
     min_delta_time = args.min_delta_time
     max_delta_time = args.max_delta_time
 
-    # 文件加载
-    if type(norad_id) != list[int]:
-        norad_id = [norad_id]
-    input_manager = InputManager(norad_id)
-    input_manager.create_fig_dir()
-    sats = input_manager.load_all_tle()
-
     # 初始化参数
     ts = load.timescale()  # 加载时间尺度
     tick = args.tick  # 时间步长
     lat = args.latitude
     long = args.longitude
     ground_station = wgs84.latlon(lat, long)  # 根据经纬度确定地面站坐标
+
+    # 文件加载
+    if type(norad_id) != list[int]:
+        norad_id = [norad_id]
+    input_manager = InputManager(norad_id, ts)
+    input_manager.create_fig_dir()
+    sats = input_manager.load_all_tle()
+    input_manager.handle_date(curve_data_dir / "57582" / "2024-01-27")
+
+    
 
     skymanager = SkyfieldManager(ground_station, ts, sats)
     sat_records = skymanager.get_sat_by_id_and_date(57582, date=date(2024, 1, 27))

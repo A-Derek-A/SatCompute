@@ -12,6 +12,7 @@ from skyfield.api import Angle
 import pickle
 import os
 from dataclasses import dataclass
+from tqdm import tqdm
 
 
 work_dir = Path(__file__).parent.parent
@@ -171,7 +172,7 @@ class SkyfieldManager:
         duration: timedelta,
         path: Path,
         minimum_elevation: int,
-        sample_point:int = 1000,
+        sample_point:int = 10000,
         elevation: list[int] = [80, 60, 40, 20]
     ):
         save_file_dir = curve_data_dir / f"{sat.model.satnum}" / f"{path.name}"
@@ -227,7 +228,7 @@ class SkyfieldManager:
                 )
                 while(begin_dt < end_dt):
                     sat_cur = self.timescale.from_datetime(begin_dt)
-                    res = self.search_minimum_delta_time(sat, sat_cur - timedelta(milliseconds=1), sat_cur+ timedelta(microseconds=1), 9.6e9, 0.5)
+                    res = self.search_minimum_delta_time(sat, sat_cur - timedelta(milliseconds=5), sat_cur+ timedelta(microseconds=5), 9.6e9, 0.5)
                     logger.info(f"{begin_dt}<->{s.utc_datetime()}< - >{timedelta(seconds= max_time * 86400 / sample_point)}")
                     idx = int((begin_dt - s.utc_datetime()) / timedelta(seconds= max_time * 86400 / sample_point))
                     idx += len(days) / 2 - mid
@@ -240,7 +241,7 @@ class SkyfieldManager:
                 
                 for ki, vi in flags.items():
                     # logger.info(f"{ki[0]=}, {ki[1]=}, {k=}, {vi}")
-                    save_file = save_file_dir / f"{k.degrees}-{ti[0].tt}.dat"
+                    save_file = save_file_dir / f"{k.degrees}-{ti[0].tt}"
                     np.savez(save_file, curve_masked)
                     if ki[0] < k.degrees and ki[1] >= k.degrees and vi:
                         plt.plot(
@@ -255,12 +256,20 @@ class SkyfieldManager:
                         plt.plot(days, curve_masked, colors[color_mapping[ki]])
                 
         plt.legend()
+        plt.yscale('log')
+        plt.ylim(0, 1e4)
+        plt.ylabel("Delta Time (us, log scale)")
+        plt.xlabel("Time (seconds)")
+        plt.title("Satellite-Ground Delta Time (Log Scale)")
+        plt.grid(True, which="both", ls="--", alpha=0.6)
+        plt.tight_layout()
         plt.savefig(
-            path.parent.parent.parent
+        path.parent.parent.parent
             / "fig"
             / f"{sat.model.satnum}"
-            / f"{path.name}-deltatime.jpg"
+            / f"{path.name}-delta-time-log.jpg"
         )
+        plt.show()
 
         
 
@@ -513,7 +522,7 @@ class SkyfieldManager:
         delta_dis: float,
     ):
         left = 0
-        right = 1000  # microseconds
+        right = 1000000  # microseconds
         while left + 1 < right:
             mid = int((left + right) / 2)
             if self._check(start_time, end_time, mid, vec, delta_dis):
@@ -582,7 +591,7 @@ class SkyfieldManager:
             resume = False
         logger.info("try to load the checkpoint")
         # Step 2: 遍历事件
-        for k, v in events_dict.items():
+        for k, v in tqdm(events_dict.items()):
             for event_idx, ti in enumerate(v):
                 save_file = (
                     curve_data_dir

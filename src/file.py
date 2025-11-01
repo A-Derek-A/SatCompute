@@ -4,7 +4,9 @@ from skyfield.api import load
 from utils.logger import logger
 from sky import SatRecord
 from datetime import date
-import matplotlib as plt
+import matplotlib.pyplot as plt
+from skyfield.api import Angle, Time
+import numpy as np
 
 
 work_dir = Path(__file__).parent.parent
@@ -16,8 +18,13 @@ curve_data_dir = work_dir / "data" / "curve"
 
 
 class InputManager:
-    def __init__(self, norad_id_list: list[int]):
+    def __init__(
+        self, 
+        norad_id_list: list[int],
+        timescale: Time
+    ):
         self.norad_id_list = norad_id_list
+        self.timescale = timescale
 
     def create_fig_dir(self):
         if not fig_data_dir.exists():
@@ -66,39 +73,128 @@ class InputManager:
         return res
 
     def print_figure(
+        self,
         xdata: list,
         ydata: dict,
         norad_id: int,
         date_name: str,
         xlabel: str | None,
         ylabel: str | None,
-        figure_title: str | None,
+        figure_title: str,
+        is_log: bool = True,
         is_grid: bool = True,
+        ylim: tuple[float, float] | None = (1, 1e4),
         figure_size: tuple[int, int] = (8, 4),
         is_print: bool = False,
+        elevation: list[float] = [20, 40, 60, 80],
     ):
+        
+        # print(type(xdata), type(ydata), type(norad_id), type(date_name), type(xlabel), type(ylabel), type(figure_title))
+        print(type(figure_size))
+        print(figure_size)
         colors = ["red", "green", "blue", "orange"]
+        flags = {k: True for k in ydata.keys()}
+        elevation.append(90)
+        elevation.sort()
         plt.figure(figsize=figure_size)
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
-        plt.title(figure_title)
-        plt.grid(is_grid)
+        if figure_title is not None:
+            plt.title(figure_title)
+        plt.legend()
+        if is_log:
+            plt.yscale('log')
+        if is_grid:
+            plt.grid(True, which="both", ls="--", alpha=0.6)
+        if ylim is not None:
+            plt.ylim(ylim)
         plt.tight_layout()
-
         for k, v in ydata.items():
             for item in v:
-                plt.plot(xdata, item, colors[k], label=f"test degree")
+                if flags[k]:
+                    logger.info(f"{len(item)=}")
+                    logger.info(f"{len(xdata)=}")
+                    plt.plot(xdata, item, colors[k], label=f"{elevation[k]}-{elevation[k + 1]} degree")
+                    flags[k] = False
+                else:
+                    plt.plot(xdata, item, colors[k])
 
-        plt.legend()
-        plt.savefig(fig_data_dir / f"{norad_id}" / f"{date_name}-delta-time.jpg")
+        plt.savefig(fig_data_dir / f"{norad_id}" / f"{date_name}-{figure_title}.jpg")
         if is_print:
             plt.show()
 
     def handle_date(
+        self,
         data_path: Path,
+        elevation: list[float] = [20, 40, 60, 80],
+        
     ):
-        for item in data_path.glob(".npz"):
+        
+        data = {}
+        color_mapping = {}
+        last = 0
+        elevation.sort()
+        cnt = 0
+        for d in elevation:
+            color_mapping[(last, d)] = cnt % 4
+            cnt += 1
+            last = d
+
+        color_mapping[(elevation[-1], 90)] = cnt % 4
+        max_time = 0
+        for item in data_path.glob("*.npz"):
             degree, time = item.name.split("-")
-            time, _, _ = time.split(".")
-            print(time)
+            time, num, _ = time.split(".")
+            time = float(time + "." + num)
+            degree = float(degree)
+            deg = Angle(degrees=degree)
+            time = self.timescale.tt_jd(time)
+            for ki, vi in color_mapping.items():
+                if ki[0] < deg.degrees <= ki[1]:
+                    with open(item, "rb") as f:
+                        npz = np.load(f)
+                        curve_masked = npz["arr_0"]
+                        max_time = max(max_time, len(curve_masked))
+                        data.setdefault(vi, []).append(curve_masked)
+        _, first_value = next(iter(data.items()))
+        sample_point = len(first_value[0]) - 1
+        logger.info(f"{sample_point=}")
+        days = np.arange(0, max_time, max_time / sample_point) * 86400
+        # days = np.append(days, days[-1] + max_time / sample_point * 86400)
+
+        logger.info(f"handle-{len(days)=}")
+        print(type(data))
+        self.print_figure(
+            days,
+            data,
+            57582,
+            data_path.name,
+            "Time (seconds)",
+            "Delta Time (us)",
+            "Delta-Time-Over-Time",
+        )
+                        
+        # def print_figure(
+        # xdata: list,
+        # ydata: dict,
+        # norad_id: int,
+        # date_name: str,
+        # xlabel: str | None,
+        # ylabel: str | None,
+        # figure_title: str | None,
+        # is_log: bool = True,
+        # is_grid: bool = True,
+        # ylim: tuple[float, float] | None = (1e-1, 1e4),
+        # figure_size: tuple[int, int] = (8, 4),
+        # is_print: bool = False,
+    # ):
+                
             
+            
+            
+if __name__ == "__main__":
+    timescale = load.timescale()
+    input_manager = InputManager([57582], timescale)
+    input_manager.create_fig_dir()
+    sats = input_manager.load_all_tle()
+    input_manager.handle_date(curve_data_dir / f"{57582}" / "2024-01-27")
