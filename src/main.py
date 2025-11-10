@@ -104,9 +104,18 @@ if __name__ == "__main__":
             #     checkpoint_path=check_data_dir / f"{s.model.satnum}" / f"checkpoint.pkl",
             # )
 
-            skymanager.print_delta_time_quick(
-                sat=s,
-                path=item.datadir,
+            # skymanager.print_delta_time_quick(
+            #     sat=s,
+            #     path=item.datadir,
+            #     duration=timedelta(days=1),
+            #     minimum_elevation=0
+            # )
+
+            skymanager.print_points(
+                s,
+                item.datadir,
                 duration=timedelta(days=1),
-                minimum_elevation=0
+                minimum_elevation=0,
+                delta_dis=dis,
+                points_num=10000,
             )

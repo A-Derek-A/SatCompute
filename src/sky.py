@@ -271,6 +271,11 @@ class SkyfieldManager:
         )
         plt.show()
 
+    def p(
+        self,
+
+    ):
+        pass
         
 
     def print_complete_process(
@@ -686,4 +691,121 @@ class SkyfieldManager:
                 if checkpoint_path.with_suffix(".bak").exists():
                     checkpoint_path.with_suffix(".bak").unlink()
 
+    def calculate_radial_velocity(self, sat: EarthSatellite, target_time: Time):
+        # 获取卫星和观察者的天体量（包含位置和速度）
+        satellite_astrometric = (sat - self.ground_station).at(target_time)
+        
     
+        # 提取位置和速度矢量（单位：km 和 km/s）
+        relative_position = satellite_astrometric.position.km  # 相对位置矢量 r
+        relative_velocity = satellite_astrometric.velocity.km_per_s  # 相对速度矢量 v
+    
+        # 计算视线方向单位矢量
+        distance = np.linalg.norm(relative_position)
+        line_of_sight_unit = relative_position / distance
+    
+        # 计算径向速度（点积）
+        radial_velocity = np.dot(relative_velocity, line_of_sight_unit)
+        
+        return radial_velocity, distance
+
+    def print_points(
+        self,
+        sat: EarthSatellite,
+        path: Path,
+        duration: timedelta,
+        minimum_elevation: float,
+        delta_dis: float,
+        points_num: int,
+        elevation: list[float] = [20, 40, 60, 80],
+    ):  
+        
+        plt.figure(figsize=(8, 4))
+        colors = ["red", "green", "blue", "orange"]
+        plt.xlabel("Time")
+        plt.ylabel("Delta Time-(us)")
+        plt.title("Delta Time Over Time")
+        plt.grid(True)
+        plt.tight_layout()
+        flags = {}
+        color_mapping = {}
+        last = 0
+        elevation.sort()
+        # print(elevation)
+        cnt = 0
+        for d in elevation:
+            flags[(last, d)] = True
+            color_mapping[(last, d)] = cnt % 4
+            cnt += 1
+            last = d
+        flags[(elevation[-1], 90)] = True
+        color_mapping[(elevation[-1], 90)] = cnt % 4
+
+        save_file_dir = curve_data_dir / f"{sat.model.satnum}" / f"{path.name}"
+        if not save_file_dir.exists():
+            save_file_dir.mkdir()
+
+        # 生成事件
+        all_events = self.generate_events(sat, duration, minimum_elevation)
+        events_dict = {}
+        max_time = 0
+        for event in all_events:
+            max_time = max(max_time, event[-1].tt - event[0].tt)
+            ele = self.cal_maximum_ele(sat, event[1])
+            events_dict.setdefault(ele, []).append(event)
+
+        vec = sat - self.ground_station
+        elevation.sort()
+        
+        time_axis = np.arange(0, points_num, max_time / points_num) * 86400 # 横轴是秒
+        logger.info("generate events")
+
+        for k, v in events_dict.items():
+            for ti in v:
+                curve = np.zeros(len(time_axis))
+                s = ti[0]
+                e = ti[-1]
+                begin_dt = s.utc_datetime()
+                end_dt = e.utc_datetime()
+                start_idx = points_num / 2 - ((end_dt - begin_dt) / 2  / timedelta(seconds= max_time * 86400 / points_num))
+                for p_idx in range(start_idx, len(time_axis) - start_idx):
+                    cur_dt = begin_dt + timedelta(seconds= max_time * 86400 / points_num)
+                    sat_cur = self.timescale.from_datetime(cur_dt)
+                    radial_velocity, distance = self.calculate_radial_velocity(sat, sat_cur)
+                    res = delta_dis / radial_velocity
+                    curve[p_idx] = res
+                curve_masked = np.where(curve == 0, np.nan, curve)
+                    
+                
+                for ki, vi in flags.items():
+                    # logger.info(f"{ki[0]=}, {ki[1]=}, {k=}, {vi}")
+                    save_file = save_file_dir / f"{k.degrees}-{ti[0].tt}-2025-11-10"
+                    np.savez(save_file, curve_masked)
+                    if ki[0] < k.degrees and ki[1] >= k.degrees and vi:
+                        plt.plot(
+                            time_axis,
+                            curve_masked,
+                            colors[color_mapping[ki]],
+                            label=f"{ki[0]}-{ki[1]} degree",
+                        )
+                        
+                        flags[ki] = False
+                    elif ki[0] < k.degrees and ki[1] >= k.degrees and (not vi):
+                        plt.plot(time_axis, curve_masked, colors[color_mapping[ki]])
+        plt.legend()
+        plt.yscale('log')
+        plt.ylim(0, 1e4)
+        plt.ylabel("Delta Time (us, log scale)")
+        plt.xlabel("Time (seconds)")
+        plt.title("Satellite-Ground Delta Time (Log Scale)")
+        plt.grid(True, which="both", ls="--", alpha=0.6)
+        plt.tight_layout()
+        plt.savefig(
+        path.parent.parent.parent
+            / "fig"
+            / f"{sat.model.satnum}"
+            / f"{path.name}-delta-time-log-2025-11-10.jpg"
+        )
+        plt.show()
+        
+
