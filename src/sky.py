@@ -2,8 +2,9 @@ from skyfield.api import Time, EarthSatellite
 from datetime import timedelta
 from skyfield.toposlib import GeographicPosition
 import matplotlib.pyplot as plt
+from matplotlib.ticker import LogLocator
 import numpy as np
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from skyfield.vectorlib import VectorSum
 from skyfield.constants import C
@@ -696,9 +697,9 @@ class SkyfieldManager:
         satellite_astrometric = (sat - self.ground_station).at(target_time)
         
     
-        # 提取位置和速度矢量（单位：km 和 km/s）
-        relative_position = satellite_astrometric.position.km  # 相对位置矢量 r
-        relative_velocity = satellite_astrometric.velocity.km_per_s  # 相对速度矢量 v
+        # 提取位置和速度矢量（单位：m 和 m/s）
+        relative_position = satellite_astrometric.position.m  # 相对位置矢量 r
+        relative_velocity = satellite_astrometric.velocity.m_per_s  # 相对速度矢量 v
     
         # 计算视线方向单位矢量
         distance = np.linalg.norm(relative_position)
@@ -719,19 +720,10 @@ class SkyfieldManager:
         points_num: int,
         elevation: list[float] = [20, 40, 60, 80],
     ):  
-        
-        plt.figure(figsize=(8, 4))
-        colors = ["red", "green", "blue", "orange"]
-        plt.xlabel("Time")
-        plt.ylabel("Delta Time-(us)")
-        plt.title("Delta Time Over Time")
-        plt.grid(True)
-        plt.tight_layout()
         flags = {}
         color_mapping = {}
         last = 0
         elevation.sort()
-        # print(elevation)
         cnt = 0
         for d in elevation:
             flags[(last, d)] = True
@@ -744,6 +736,9 @@ class SkyfieldManager:
         save_file_dir = curve_data_dir / f"{sat.model.satnum}" / f"{path.name}"
         if not save_file_dir.exists():
             save_file_dir.mkdir()
+        save_day = save_file_dir / f"{datetime.now().strftime('%Y-%m-%d')}"
+        if not save_day.exists():
+            save_day.mkdir()
 
         # 生成事件
         all_events = self.generate_events(sat, duration, minimum_elevation)
@@ -753,11 +748,10 @@ class SkyfieldManager:
             max_time = max(max_time, event[-1].tt - event[0].tt)
             ele = self.cal_maximum_ele(sat, event[1])
             events_dict.setdefault(ele, []).append(event)
-
-        vec = sat - self.ground_station
         elevation.sort()
         
-        time_axis = np.arange(0, points_num, max_time / points_num) * 86400 # 横轴是秒
+        logger.info(f"now create the time axis")
+        time_axis = np.linspace(0, max_time, points_num) * 86400
         logger.info("generate events")
 
         for k, v in events_dict.items():
@@ -768,44 +762,23 @@ class SkyfieldManager:
                 begin_dt = s.utc_datetime()
                 end_dt = e.utc_datetime()
                 start_idx = points_num / 2 - ((end_dt - begin_dt) / 2  / timedelta(seconds= max_time * 86400 / points_num))
+                start_idx = int(start_idx)
+                # logger.info(f"{start_idx=}")
                 for p_idx in range(start_idx, len(time_axis) - start_idx):
-                    cur_dt = begin_dt + timedelta(seconds= max_time * 86400 / points_num)
+                    # logger.info(f"{p_idx=}")
+                    cur_dt = begin_dt + timedelta(seconds= max_time * 86400 / points_num) * (p_idx - start_idx)
+                    # logger.info(f"{cur_dt=}")
                     sat_cur = self.timescale.from_datetime(cur_dt)
                     radial_velocity, distance = self.calculate_radial_velocity(sat, sat_cur)
-                    res = delta_dis / radial_velocity
-                    curve[p_idx] = res
+                    # logger.info(f"{delta_dis=}, {radial_velocity=}")
+                    res = delta_dis / abs(radial_velocity)
+                    curve[p_idx] = res * 1000000
+                    
                 curve_masked = np.where(curve == 0, np.nan, curve)
                     
-                
                 for ki, vi in flags.items():
-                    # logger.info(f"{ki[0]=}, {ki[1]=}, {k=}, {vi}")
-                    save_file = save_file_dir / f"{k.degrees}-{ti[0].tt}-2025-11-10"
+                    save_file = save_day / f"{k.degrees}-{ti[0].tt}"
                     np.savez(save_file, curve_masked)
                     if ki[0] < k.degrees and ki[1] >= k.degrees and vi:
-                        plt.plot(
-                            time_axis,
-                            curve_masked,
-                            colors[color_mapping[ki]],
-                            label=f"{ki[0]}-{ki[1]} degree",
-                        )
-                        
                         flags[ki] = False
-                    elif ki[0] < k.degrees and ki[1] >= k.degrees and (not vi):
-                        plt.plot(time_axis, curve_masked, colors[color_mapping[ki]])
-        plt.legend()
-        plt.yscale('log')
-        plt.ylim(0, 1e4)
-        plt.ylabel("Delta Time (us, log scale)")
-        plt.xlabel("Time (seconds)")
-        plt.title("Satellite-Ground Delta Time (Log Scale)")
-        plt.grid(True, which="both", ls="--", alpha=0.6)
-        plt.tight_layout()
-        plt.savefig(
-        path.parent.parent.parent
-            / "fig"
-            / f"{sat.model.satnum}"
-            / f"{path.name}-delta-time-log-2025-11-10.jpg"
-        )
-        plt.show()
-        
-
+                    

@@ -66,9 +66,8 @@ if __name__ == "__main__":
     input_manager = InputManager(norad_id, ts)
     input_manager.create_fig_dir()
     sats = input_manager.load_all_tle()
-    input_manager.handle_date(curve_data_dir / "57582" / "2024-01-27")
+    input_manager.handle_date(curve_data_dir / "57582" / "2024-01-27" / "2025-11-10")
 
-    
 
     skymanager = SkyfieldManager(ground_station, ts, sats)
     sat_records = skymanager.get_sat_by_id_and_date(57582, date=date(2024, 1, 27))
@@ -79,6 +78,7 @@ if __name__ == "__main__":
 
     for item in sat_records:
         for s in item.sats:
+            pass
             # skymanager.print_distance_figure(
             #     s, item.datadir, duration=timedelta(days=1), delta=tick
             # )
@@ -111,11 +111,11 @@ if __name__ == "__main__":
             #     minimum_elevation=0
             # )
 
-            skymanager.print_points(
-                s,
-                item.datadir,
-                duration=timedelta(days=1),
-                minimum_elevation=0,
-                delta_dis=dis,
-                points_num=10000,
-            )
+            # skymanager.print_points(
+            #     s,
+            #     item.datadir,
+            #     duration=timedelta(days=1),
+            #     minimum_elevation=0,
+            #     delta_dis=dis,
+            #     points_num=100000,
+            # )
