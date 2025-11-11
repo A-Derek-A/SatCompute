@@ -7,6 +7,7 @@ from datetime import date
 import matplotlib.pyplot as plt
 from skyfield.api import Angle, Time
 import numpy as np
+from matplotlib.ticker import LogLocator, ScalarFormatter, FixedLocator
 
 
 work_dir = Path(__file__).parent.parent
@@ -84,7 +85,7 @@ class InputManager:
         is_log: bool = True,
         is_grid: bool = True,
         ylim: tuple[float, float] | None = (1, 1e4),
-        figure_size: tuple[int, int] = (8, 4),
+        figure_size: tuple[int, int] = (12, 8),
         is_print: bool = False,
         elevation: list[float] = [20, 40, 60, 80],
     ):
@@ -94,6 +95,7 @@ class InputManager:
         print(figure_size)
         colors = ["red", "green", "blue", "orange"]
         flags = {k: True for k in ydata.keys()}
+        logger.info(f"{flags=}")
         elevation.append(90)
         elevation.sort()
         plt.figure(figsize=figure_size)
@@ -101,9 +103,27 @@ class InputManager:
         plt.ylabel(ylabel)
         if figure_title is not None:
             plt.title(figure_title)
-        plt.legend()
+        
         if is_log:
+            ax = plt.gca()
             plt.yscale('log')
+            # 主刻度：10⁰, 10¹, 10²...（默认即可）
+            # ax.yaxis.set_major_locator(LogLocator(base=10.0, numticks=10))
+            # 次刻度：每个数量级显示2,3,4...9
+            # ax.yaxis.set_minor_locator(LogLocator(base=10.0, subs=np.arange(2, 10), numticks=100))
+            custom_ticks = np.concatenate([
+                np.arange(2, 10, 2),           # 1-10阶段：2,3,4,5,6,7,8,9
+                np.arange(20, 100, 20),     # 10-100阶段：20,30,40,50,60,70,80,90
+                [500],                      # 100-1000阶段：仅500
+                # 1000以上：不添加任何值
+            ])
+            # 3. 设置次刻度位置（FixedLocator）
+            ax.yaxis.set_minor_locator(FixedLocator(custom_ticks))
+            # 4. 格式化标签（显示为整数）
+            ax.yaxis.set_minor_formatter(ScalarFormatter())
+            # 5. 主刻度保持默认（1,10,100,1000,10000）
+            ax.yaxis.set_major_formatter(ScalarFormatter())
+            plt.tight_layout()
         if is_grid:
             plt.grid(True, which="both", ls="--", alpha=0.6)
         if ylim is not None:
@@ -118,7 +138,7 @@ class InputManager:
                     flags[k] = False
                 else:
                     plt.plot(xdata, item, colors[k])
-
+        plt.legend()
         plt.savefig(fig_data_dir / f"{norad_id}" / f"{date_name}-{figure_title}.jpg")
         if is_print:
             plt.show()
@@ -126,8 +146,8 @@ class InputManager:
     def handle_date(
         self,
         data_path: Path,
+        norad_id: int,
         elevation: list[float] = [20, 40, 60, 80],
-        
     ):
         
         data = {}
@@ -144,6 +164,7 @@ class InputManager:
         max_time = 0
         for item in data_path.glob("*.npz"):
             degree, time = item.name.split("-")
+            print(time)
             time, num, _ = time.split(".")
             time = float(time + "." + num)
             degree = float(degree)
@@ -160,36 +181,20 @@ class InputManager:
         sample_point = len(first_value[0]) - 1
         logger.info(f"{sample_point=}")
         days = np.arange(0, max_time, max_time / sample_point) * 86400
-        # days = np.append(days, days[-1] + max_time / sample_point * 86400)
+        days = np.append(days, days[-1] + max_time / sample_point * 86400)
 
         logger.info(f"handle-{len(days)=}")
         print(type(data))
+        print(data_path.parent.name)
         self.print_figure(
             days,
             data,
-            57582,
-            data_path.name,
+            norad_id,
+            data_path.parent.name,
             "Time (seconds)",
             "Delta Time (us)",
             "Delta-Time-Over-Time",
         )
-                        
-        # def print_figure(
-        # xdata: list,
-        # ydata: dict,
-        # norad_id: int,
-        # date_name: str,
-        # xlabel: str | None,
-        # ylabel: str | None,
-        # figure_title: str | None,
-        # is_log: bool = True,
-        # is_grid: bool = True,
-        # ylim: tuple[float, float] | None = (1e-1, 1e4),
-        # figure_size: tuple[int, int] = (8, 4),
-        # is_print: bool = False,
-    # ):
-                
-            
             
             
 if __name__ == "__main__":
